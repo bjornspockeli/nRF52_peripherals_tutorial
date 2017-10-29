@@ -12,9 +12,9 @@ Short tutorial that shows how to configure a Timer to toogle a GPIO pin, in soft
 
 ## Tasks
 
-In all the tasks we'll be using the SDK driver for the peripherals, i.e. nrf_drv_xxx.c, which can be found in nRF5_SDK_13.0.0_04a0bfd\components\drivers_nrf\. It is possible to use the peripherals at the register level using the Hardware Access Layer(HAL) for said peripheral, found in nRF5_SDK_13.0.0_04a0bfd\components\drivers_nrf\hal. THis will, however, not be covered in this tutorial. 
+In all the tasks we'll be using the SDK driver for the peripherals, i.e. nrf_drv_xxx.c, which can be found in nRF5_SDK_14.1.0_1dda907\components\drivers_nrf\. It is possible to use the peripherals at the register level using the Hardware Access Layer(HAL) for said peripheral, found in nRF5_SDK_13.0.0_04a0bfd\components\drivers_nrf\hal. THis will, however, not be covered in this tutorial. 
 
-### Warm-up
+### Warm-up (consider removing this section as this is very tedious and after the first build only the changed source files will be compiled )
 
 The template project includes all the peripheral libraries and drivers from the SDK, but we're only going to use a few, so to reduce the compile time and size of our project we'll temporarily remove them from the project. 
 
@@ -32,10 +32,29 @@ Remove files from Target Build | Uncheck modules in skd_config.h  |
 ------------ |------------ |
 <img src="https://github.com/bjornspockeli/nRF52_ppi_timper_gpiote_example/blob/master/images/warmup_uninclude_files.JPG" width="400"> | <img src="https://github.com/bjornspockeli/nRF52_ppi_timper_gpiote_example/blob/master/images/skd_config_uncheck.JPG" width="400"> |
 
+### -1. Blink a LED
+
+Goal: Blink a LED by keeping the CPU in a busy-wait loop 
+
+
+
+### 0. Buttons - Button Handler Library
+
+1. Normally we would need to add the Button Handler library, app_button.c, under nRF_Libraries in our project, but it is already been added in the template project. However,  we do need to include the app_button.h header at the top of main.c.
+
+2. Next, create a static void function called buttons_init(), where you initalize the Button Handler library using [app_button_init](link to infocenter documentation). 
+
+    Hints:
+    - You will need to create a app_button_cfg_t struct for each button you configure.
+    - The button pin number as well as the active state of the buttons can be seen on the backside of the nRF52 DK.
+    - After initializing the Button Handler library with button configuration you will need to enable it, there should be a appropriate function.
+
+3. 
+
+
 ### 1. GPIOTE - GPIO Tasks and Events
 
-**Module description:** The GPIO tasks and events (GPIOTE) module provides functionality for accessing GPIO pins using tasks
-and events. Each GPIOTE channel can be assigned to one pin. The GPIOTE block enables GPIOs to generate events on pin state change which can be used to carry out
+**Module description:** The GPIO tasks and events (GPIOTE) module provides functionality for accessing GPIO pins using tasks and events. Each GPIOTE channel can be assigned to one pin. The GPIOTE block enables GPIOs to generate events on pin state change which can be used to carry out
 tasks through the PPI system.
 
 The GPIOTE driver API (nrf_drv_gpiote.c) is documented [here](http://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v13.0.0/hardware_driver_gpiote.html?cp=4_0_0_2_3).
@@ -144,3 +163,14 @@ The Logging module API (nrf_log.c) is documented [here](http://infocenter.nordic
 J-Link RTT Viewer Configuration  | 
 ------------ |
 <img src="https://github.com/bjornspockeli/nRF52_ppi_timper_gpiote_example/blob/master/images/rtt_viewer_config.JPG" width="250"> |
+
+
+### 5. Servo - Controlling a servo using the PWM driver(nrf_drv_pwm.c) or PWM library(app_pwm.c)
+
+Task: 
+
+
+### 6. NFC -  Trigger a task when a NFC field is sensed.
+
+Task: Use the sense functionality of the NFCT peripheral to detect the prescence of a NFC field and trigger a certain event e.g. toogle led or move the servo ( NFC controlled door lock).
+

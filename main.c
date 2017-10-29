@@ -50,22 +50,24 @@
 #include "nordic_common.h"
 #include "boards.h"
 
-// Header file that needs to be included for PPI/GPIOTE/TIMER/TWI example.
+// Header files that needs to be included for PPI/GPIOTE/TIMER/TWI example.
+
+// Peripheral driver header files
 #include "nrf_drv_ppi.h"
 #include "nrf_drv_timer.h"
 #include "nrf_drv_gpiote.h"
 #include "nrf_drv_twi.h"
+
+// Library header files
+#include "app_timer.h"
+#include "app_button.h"
 
 // Headers and defines needed by the logging interface
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
-// Map LED pins on the nRF52 DK. 
-#define LED1 17
-#define LED2 20
-#define LED3 19
-
+#define NUMBER_OF_BUTTONS 1
 
 // Timer instance
 const nrf_drv_timer_t timer0 = NRF_DRV_TIMER_INSTANCE(0);
@@ -80,7 +82,7 @@ void timer_event_handler(nrf_timer_event_t event_type, void * p_context)
     switch(event_type)
     {
         case NRF_TIMER_EVENT_COMPARE0:
-            nrf_drv_gpiote_out_task_trigger(LED3);
+            nrf_drv_gpiote_out_task_trigger(LED_3);
             NRF_LOG_INFO("Toogle LED3 \r\n");
             break;
         default:
@@ -118,33 +120,37 @@ static void gpiote_init(void) {
     
     ret_code_t err_code;
     
-    // Initialize the GPIOTE driver
-    err_code = nrf_drv_gpiote_init();
-    APP_ERROR_CHECK(err_code);
+    // Check wether the GPIOTE driver has been initialized before by any other module, e.g. app_button_init().
+    if (!nrf_drv_gpiote_is_init())
+    {
+        // Initialize the GPIOTE driver
+        err_code = nrf_drv_gpiote_init();
+        APP_ERROR_CHECK(err_code);
+    }
 
     // Configure the GPIO pin so that its toggled every time the OUT task is triggerd
     nrf_drv_gpiote_out_config_t config = GPIOTE_CONFIG_OUT_TASK_TOGGLE(false); 
     
     // Apply the configuration above to the LED_1 GPIO pin.  
-    err_code = nrf_drv_gpiote_out_init(LED1, &config);
+    err_code = nrf_drv_gpiote_out_init(LED_1, &config);
     APP_ERROR_CHECK(err_code);
     
     // Apply the configuration above to the LED_2 GPIO pin.  
-    err_code = nrf_drv_gpiote_out_init(LED2, &config);
+    err_code = nrf_drv_gpiote_out_init(LED_2, &config);
     APP_ERROR_CHECK(err_code);
     
        // Apply the configuration above to the LED_2 GPIO pin.  
-    err_code = nrf_drv_gpiote_out_init(LED3, &config);
+    err_code = nrf_drv_gpiote_out_init(LED_3, &config);
     APP_ERROR_CHECK(err_code);
    
     // Enabling the OUT task for the LED_1 GPIO pin.
-    nrf_drv_gpiote_out_task_enable(LED1);
+    nrf_drv_gpiote_out_task_enable(LED_1);
     
     // Enabling the OUT task for the LED_2 GPIO pin.
-    nrf_drv_gpiote_out_task_enable(LED2);
+    nrf_drv_gpiote_out_task_enable(LED_2);
     
     // Enabling the OUT task for the LED_3 GPIO pin.
-    nrf_drv_gpiote_out_task_enable(LED3);
+    nrf_drv_gpiote_out_task_enable(LED_3);
 }
 
 /** @brief Function for initializing the PPI peripheral.
@@ -165,11 +171,11 @@ static void ppi_init(void)
     // Assigning task and event endpoints so that the PPI channel triggers the OUT task of the LED_1 GPIO pin on TIMER0 COMPARE[0] match.
     err_code = nrf_drv_ppi_channel_assign(ppi_channel,
                                           nrf_drv_timer_event_address_get(&timer0, NRF_TIMER_EVENT_COMPARE0),
-                                          nrf_drv_gpiote_out_task_addr_get(LED1)); 
+                                          nrf_drv_gpiote_out_task_addr_get(LED_1)); 
     APP_ERROR_CHECK(err_code);
       
     // Fork the PPI channel, so that OUT task of the LED_2 GPIO pin is also triggered by the TIMER compare event. 
-    err_code = nrf_drv_ppi_channel_fork_assign(ppi_channel, nrf_drv_gpiote_out_task_addr_get(LED2));
+    err_code = nrf_drv_ppi_channel_fork_assign(ppi_channel, nrf_drv_gpiote_out_task_addr_get(LED_2));
     APP_ERROR_CHECK(err_code);
     
     // Enable the PPI channel 
@@ -188,6 +194,42 @@ static void log_init(void)
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 }
 
+static void timers_init(void)
+{
+    ret_code_t err_code;
+
+    // Initialize timer module.
+    err_code = app_timer_init();
+    APP_ERROR_CHECK(err_code);
+}
+
+void button_handler(uint8_t pin_no, uint8_t button_action)
+{
+    if(pin_no == BUTTON_1 && button_action == APP_BUTTON_PUSH)
+    {
+        nrf_drv_gpiote_out_task_trigger(LED_1);
+    }
+
+}
+
+
+static void buttons_init()
+{
+    ret_code_t err_code;
+
+    app_button_cfg_t button_cfg = {
+      .pin_no = BUTTON_1,
+      .active_state = APP_BUTTON_ACTIVE_LOW,
+      .pull_cfg = NRF_GPIO_PIN_PULLUP,
+      .button_handler = button_handler 
+    };
+
+    err_code = app_button_init(&button_cfg,NUMBER_OF_BUTTONS,5);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_button_enable();
+    APP_ERROR_CHECK(err_code);
+}
 
 static void power_manage()
 { 
@@ -217,11 +259,17 @@ int main(void)
 { 
     log_init();
     
-    NRF_LOG_INFO("GPIOTE/TIMER/PPI Tutorial \r\n");
+    NRF_LOG_INFO("nRF52 Peripheral Tutorial \r\n");
+    
+    // Must be called before buttons_init as the Button Handler library(app_button.c) is used.
+    timers_init();
+    
+    // Initialize the buttons
+    buttons_init();
     
     // The GPIOTE peripheral must be initialized first, so that the correct Task Endpoint addresses are returned by nrf_drv_gpiote_xxx_task_addr_get()
     gpiote_init();
-    ppi_init();
+    //ppi_init();
     timer_init();
 
     while (true)
