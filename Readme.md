@@ -1,8 +1,16 @@
-# Simple PPI/Timer/GPIOTE Example
+# nRF52 Peripheral Tutorial
 
 ### Brief:
 
-Short tutorial that shows how to configure a Timer to toogle a GPIO pin, configure buttons to trigger  in software and by using PPI and GPIOTE to bypass the CPU.
+Several small tutorials/exercises that shows you how to: 
+ - create an Application Timer to toogle a GPIO pin
+ - configure buttons to toggle a GPIO pin
+ - generate a PWM pulse that is used to control a analog servo
+ - send serial data to and from a terminal window
+ - measure the die temperature
+ - automate  peripheral  using the tasks and event system 
+ -  configure a timer to toggle a gpio pin  to interact autonomously with each
+other using tasks and events independent of the CPU
 
 ### Requirements
 - nRF52 DK
@@ -11,7 +19,7 @@ Short tutorial that shows how to configure a Timer to toogle a GPIO pin, configu
 
 ## Tasks
 
-In all the tasks we'll be using the SDK drivers or libraries  for the peripherals, i.e. nrf_drv_xxx.c, which can be found in nRF5_SDK_14.1.0_1dda907\components\drivers_nrf\ or nRF5_SDK_14.1.0_1dda907\components\libraries.
+In all the tasks we'll be using the SDK drivers or libraries for the peripherals, i.e. nrf_drv_xxx.c, which can be found in nRF5_SDK_14.1.0_1dda907\components\drivers_nrf\ and nRF5_SDK_14.1.0_1dda907\components\libraries respectively.
 
 ### Warm-up 
 
@@ -42,7 +50,7 @@ Goal: Blink a LED by keeping the CPU in a busy-wait loop.
 
 ### 2. Application Timer 
 
-Goal: Blinking a LED with a busy-wait loop is not a very efficient as you'll keep the CPU running without actually doing anything useful. A much better approach would be to set up a timer to toggle the LED at a given interval so that the CPU can do meaningful tasks or sleep in between the timer interrupts.
+ Blinking a LED with a busy-wait loop is not a very efficient as you'll keep the CPU running without actually doing anything useful. A much better approach would be to set up a timer to toggle the LED at a given interval so that the CPU can do meaningful tasks or sleep in between the timer interrupts.
 
 The Application Timer library provides a user friendly way of using the Real Time Counter 1 (RTC1) peripheral to create multiple timer instances. The RTC uses the Low Frequency Clock (LFCLK). Most applications keep the LFCLK active at all times and when using one of the Nordic SoftDevices the LFCLK is always active. Therefore, there is normally very little extra power consumption associated with using the application timer. As the clock is 32.768 kHz and the RTC is 24 bit, the time/tick resolution is limited, but it takes a substantial amount of time before the counter wrap around (from 0xFFFFFF to 0). By using the 12 bit (1/x) prescaler the frequency of the RTC can be lowered.  
 
@@ -87,7 +95,7 @@ The Button Handler Library API is documented [here](https://infocenter.nordicsem
 
     Hints:
     - You will need to create a app_button_cfg_t struct for each button you configure. Make sure to declare it as *static*.
-    - It is possible to configure a separate event handler for each individual button, but in this tutorial we will use one event handler for all the buttons.
+    - It is possible to configure a separate event handler for each individual button, but in this exercise we will use one event handler for all the buttons.
 
 ```c
 void button_handler(uint8_t pin_no, uint8_t button_action)
@@ -105,8 +113,6 @@ void button_handler(uint8_t pin_no, uint8_t button_action)
     - You can see which pins that are connected to the different buttons on the back of the nRF52 DK.
 
 
-
-
 ### 4. Servo - Controlling a servo using the PWM driver(nrf_drv_pwm.c) or PWM library(app_pwm.c)
 
 In this task we will use the PWM library in the nRF5x SDK to control a servo. The PWM library uses one of the nRF52s TIMER peripherals in addition to the PPI and GPIOTE peripherals. The app_pwm library is documented on [this](https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v14.1.0/group__app__pwm.html?resultof=%22%61%70%70%22%20%22%70%77%6d%22%20) Infocenter page
@@ -119,7 +125,7 @@ Brown: Ground - Should be connected to one of the pins marked GND on your nRF52 
 
 Red: 5V - Should be connected to the pin marked 5V on your nRF52 DK.
 
-Orange: PWM Control Signal - Should be connected to one of the unused GPIO pins of the nRF52 DK (for example P0.4, pin number 4).
+Orange: PWM Control Signal - Should be connected to one of the unused GPIO pins of the nRF52 DK (for example P0.04, pin number 4).
 
 1. The first thing we have to do is to include the header to the PWM library, `app_pwm.h` and create a PWM instance using the TIMER2 peripheral. This is done as shown below 
 
@@ -167,9 +173,9 @@ The `pwm_init()` function is now finished and can add it to the `main()` functio
 ```c
     while (true)
     {
-        while (app_pwm_channel_duty_set(&PWM1, 0, 0) == NRF_ERROR_BUSY);
+        while (app_pwm_channel_duty_set(&PWM2, 0, 0) == NRF_ERROR_BUSY);
         nrf_delay_ms(1000);
-        while (app_pwm_channel_duty_set(&PWM1, 0, 0) == NRF_ERROR_BUSY);
+        while (app_pwm_channel_duty_set(&PWM2, 0, 0) == NRF_ERROR_BUSY);
         nrf_delay_ms(1000);
     }
     
@@ -223,24 +229,16 @@ Use the nRF52s UART peripheral and the UART library (app_uart) to echo data sent
         - strings sent to the terminal should be terminated by `\r\n`.
         - The strlen() function is very useful to find the length of a string terminated by `\n`.
 
-4. Call the `uart_print` function in `main()` or in the button handler and verify that the message is shown in the terminal.
-
 ```c
 static void uart_print(uint8_t data_string[])
 {
-  static uint8_t id[] = "[nRF52 DK]: ";
-  static uint8_t array[256];
-  
-  memcpy(array,id, sizeof(id));
-  memcpy(array+sizeof(id)-1,data_string,strlen(data_string));
-  
-  for (uint32_t i = 0; i < strlen(array); i++)
-  {
-      while (app_uart_put(array[i]) != NRF_SUCCESS);
-  }
-  
+
 }
 ```
+
+4. Call the `uart_print` function in `main()` or in the button handler and verify that the message is shown in the terminal.
+
+
 
 5. The APP_UART_DATA_READY event will be generated for each single byte that is received by the nRF52, which means that [app_uart_get](http://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v12.2.0/group__app__uart.html#gacddb5b7b711ef104f9eb181a13bc4503) must be called everytime the event is received. 
 
@@ -317,22 +315,15 @@ The memset function is used to clear the data_array since it is decleared as sta
 
 6. Send a text string from the terminal to the nRF52 DK and verify that it is echoed back to the terminal.
 
-##Task 5.1: Temperature Sensor (Optional)
-**Scope:** Use the die temperature sensor on the nRF52 to measure the temperature in the room. 
+##Task 5.1: Temperature Sensor 
+Use the die temperature sensor on the nRF52 to measure the temperature in the room. 
 
 1. Create the function read_temperature() that returns the die temperature as a int32_t. 
     *Hint:* Take a look at the temperature example in the SDK before you start modifying your template example.
 
 2. Send the temperature data to your terminal application using the UART. 
 
-Hint 1: The function app_uart_put is used to place data in the UART's transmit buffer and must be called in a for-loop if more that one byte is to be sent, i.e. 
-```C
-    for (uint32_t i = 0; i < strlen((const char *)data); i++)
-    {
-        while (app_uart_put(data[i]) != NRF_SUCCESS);
-    }
-```
-Hint 2: Use [sprintf](https://www.tutorialspoint.com/c_standard_library/c_function_sprintf.htm) to copy the content of a string into an array.
+Hint 1: Use [sprintf](https://www.tutorialspoint.com/c_standard_library/c_function_sprintf.htm) to copy the content of a string into an array.
 
 ### 6. GPIOTE - GPIO Tasks and Events
 
@@ -362,9 +353,9 @@ The GPIOTE driver API (nrf_drv_gpiote.c) is documented [here](http://infocenter.
 
 ### 7. TIMER - Timer/counter
 
-In addtion to the RTCs, the nRF52832 also has several TIMER peripherals that are more accurate 
+In addtion to the RTCs, the nRF52832 also has several TIMER peripherals that are more accurate and have 32 bit COMPARE registers. 
 
-**Module description:** The TIMER can operate in two modes: timer and counter. Both run on the high-frequency clock source (HFCLK) and includes a four-bit (1/2X) prescaler that can divide the TIMER input clock from the HFCLK controller. The PPI system allows a TIMER event to trigger a task of any other system peripheral of the device.The PPI system also enables the TIMER task/event features to generate periodic output and PWM signals to any GPIO. The number of input/outputs used at the same time is limited by the number of GPIOTE channels.
+ The TIMER can operate in two modes: timer and counter. Both run on the high-frequency clock source (HFCLK) and includes a four-bit (1/2X) prescaler that can divide the TIMER input clock from the HFCLK controller. The PPI system allows a TIMER event to trigger a task of any other system peripheral of the device.The PPI system also enables the TIMER task/event features to generate periodic output and PWM signals to any GPIO. The number of input/outputs used at the same time is limited by the number of GPIOTE channels.
 
 The TIMER driver API (nrf_drv_timer.c) is documented [here](http://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v13.0.0/hardware_driver_timer.html?cp=4_0_0_2_15).
 
@@ -391,7 +382,7 @@ The TIMER driver API (nrf_drv_timer.c) is documented [here](http://infocenter.no
 
 9. Compile the template project and download it to the nRF52 DK. LED_1 shold now blink with a frequency of 0.5 Hz.
 
-### 8. PPI - Programmable Peripheral Interconnect (Optional)
+### 8. PPI - Programmable Peripheral Interconnect 
 
 **Module description:** The Programmable peripheral interconnect (PPI) enables peripherals to interact autonomously with each
 other using tasks and events independent of the CPU. The PPI allows precise synchronization between
@@ -431,7 +422,7 @@ The PPI driver API (nrf_drv_ppi.c) is documented [here](http://infocenter.nordic
 
 12. Start a debug session, press *Run(F5)* and then *Stop* to halt the CPU of the nRF52832. LED1 and LED2 should continue to blink with the same frequency with the CPU halted. 
 
-
+<!---
 ### 9. NFC -  Trigger a task when a NFC field is sensed. (Stretch goal)
 
 Task: Use the sense functionality of the NFCT peripheral to detect the prescence of a NFC field and trigger a certain event e.g. toogle led or move the servo ( NFC controlled door lock).
@@ -457,3 +448,4 @@ The Logging module API (nrf_log.c) is documented [here](http://infocenter.nordic
 J-Link RTT Viewer Configuration  | 
 ------------ |
 <img src="https://github.com/bjornspockeli/nRF52_ppi_timper_gpiote_example/blob/master/images/rtt_viewer_config.JPG" width="250"> |
+--->
