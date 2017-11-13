@@ -96,6 +96,14 @@ The Button Handler Library API is documented [here](https://infocenter.nordicsem
     Hints:
     - You will need to create a app_button_cfg_t struct for each button you configure. Make sure to declare it as *static*.
     - It is possible to configure a separate event handler for each individual button, but in this exercise we will use one event handler for all the buttons.
+    - The button pin number as well as the active state of the buttons can be seen on the backside of the nRF52 DK.
+    - After initializing the Button Handler library with button configuration you will need to enable it, there should be a appropriate function in the API.
+
+
+3. In the event handler that you set in the button configuration structure you will have to check which pin as well as which action that generated the event. Add code to the event handler so that one of the LEDs of the nRF52 DK is toggled when you push one of the buttons on the nRF52 DK.
+    Hint: 
+    - There are two button action types, APP_BUTTON_PUSH and APP_BUTTON_RELEASE.
+    - You can see which pins that are connected to the different buttons on the back of the nRF52 DK.
 
 ```c
 void button_handler(uint8_t pin_no, uint8_t button_action)
@@ -103,14 +111,6 @@ void button_handler(uint8_t pin_no, uint8_t button_action)
     // Check which pin that generated the event as well as which type of button action that caused the event.
 }
 ```
-    - The button pin number as well as the active state of the buttons can be seen on the backside of the nRF52 DK.
-    - After initializing the Button Handler library with button configuration you will need to enable it, there should be a appropriate function.
-
-
-3. In the event handler that you set in the button configuration structure you will have to check which pin as well as which action that generated the event. Add code to the event handler so that one of the LEDs of the nRF52 DK is toggled when you push one of the buttons on the nRF52 DK.
-    Hint: 
-    - There are two button action types, APP_BUTTON_PUSH and APP_BUTTON_RELEASE.
-    - You can see which pins that are connected to the different buttons on the back of the nRF52 DK.
 
 
 ### 4. Servo - Controlling a servo using the PWM driver(nrf_drv_pwm.c) or PWM library(app_pwm.c)
@@ -315,7 +315,7 @@ The memset function is used to clear the data_array since it is decleared as sta
 
 6. Send a text string from the terminal to the nRF52 DK and verify that it is echoed back to the terminal.
 
-##Task 5.1: Temperature Sensor 
+## Task 5.1: Temperature Sensor 
 Use the die temperature sensor on the nRF52 to measure the temperature in the room. 
 
 1. Create the function read_temperature() that returns the die temperature as a int32_t. 
