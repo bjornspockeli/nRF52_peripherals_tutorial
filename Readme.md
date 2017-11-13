@@ -82,6 +82,8 @@ while (NRF_CLOCK->EVENTS_LFCLKSTARTED == 0)
 
 5. Call nrf_gpio_toogle() function to toggle one of the nRF52 DKs LEDs in the timeout handler that you specified when you initialized the application timer.
 
+6. Compile and flash the example to your nRF52 DK and verify that the LED is blinking. 
+
 
 ### 3. Buttons - Button Handler Library
 
@@ -111,7 +113,7 @@ void button_handler(uint8_t pin_no, uint8_t button_action)
     // Check which pin that generated the event as well as which type of button action that caused the event.
 }
 ```
-
+4. Compile and flash the project to your nRF52 DK and verify that the LED is toggeling when you push the button. 
 
 ### 4. Servo - Controlling a servo using the PWM library
 
@@ -127,7 +129,7 @@ Red: 5V - Should be connected to the pin marked 5V on your nRF52 DK.
 
 Orange: PWM Control Signal - Should be connected to one of the unused GPIO pins of the nRF52 DK (for example P0.04, pin number 4).
 
-1. The first thing we have to do is to include the header to the PWM library, `app_pwm.h` and create a PWM instance with the `APP_PWM_INSTANCE` macro that uses the TIMER2 peripheral. 
+1. The first thing we have to do is to include the header to the PWM library, `app_pwm.h` and create a PWM instance with the [APP_PWM_INSTANCE](https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v14.1.0/group__app__pwm.html#gaf01d3e06e17705a7453d91c70d40098f) macro that uses the TIMER2 peripheral. 
 <!---
 This is done as shown below 
 
