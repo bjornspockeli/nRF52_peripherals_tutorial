@@ -46,7 +46,7 @@ Goal: Blink a LED by keeping the CPU in a busy-wait loop.
 2. Use the nrf_gpio_cfg_output() function to configure one of the pins connected to one of the LEDs of the NRF52 DK as an output.
     Hint: See the back of the nRF52 DK for the pin assignments.
 
-3. Use nrf_delay_ms() and nrf_gpio_pin_toggle() to blink a LED within the . 
+3. Use nrf_delay_ms() and nrf_gpio_pin_toggle() to blink a LED within the while-loop. 
 
 ### 2. Application Timer 
 
