@@ -57,17 +57,27 @@
 #include "nrf_drv_timer.h"
 #include "nrf_drv_gpiote.h"
 #include "nrf_drv_twi.h"
+#include "nrf_drv_clock.h"
+
+#include "nrf_drv_uart.h"
 
 // Library header files
 #include "app_timer.h"
 #include "app_button.h"
+#include "app_pwm.h"
+
+#include "app_uart.h"
 
 // Headers and defines needed by the logging interface
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
-#define NUMBER_OF_BUTTONS 1
+#include "nrf_delay.h"
+#include "nrf_gpio.h"
+
+#define UART_TX_BUF_SIZE                256     /**< UART TX buffer size. */
+#define UART_RX_BUF_SIZE                256     /**< UART RX buffer size. */
 
 // Timer instance
 const nrf_drv_timer_t timer0 = NRF_DRV_TIMER_INSTANCE(0);
@@ -75,6 +85,13 @@ const nrf_drv_timer_t timer0 = NRF_DRV_TIMER_INSTANCE(0);
 // PPI channel
 nrf_ppi_channel_t ppi_channel;
 
+// PMW instance
+APP_PWM_INSTANCE(PWM2, 2);  // Setup a PWM instance with TIMER 2
+
+static volatile int ready_flag = true;
+
+//Application timer instance
+APP_TIMER_DEF(m_led_timer_id);
 
 // Dummy timer event handler that will be used for step 2 and 4, but not step 3.
 void timer_event_handler(nrf_timer_event_t event_type, void * p_context)
@@ -194,20 +211,47 @@ static void log_init(void)
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 }
 
-static void timers_init(void)
+void led_timer_timeout_handler(void)
+{
+    nrf_gpio_pin_toggle(LED_1);
+}
+
+static void application_timer_init(void)
 {
     ret_code_t err_code;
 
     // Initialize timer module.
     err_code = app_timer_init();
     APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_create(&m_led_timer_id,APP_TIMER_MODE_REPEATED, led_timer_timeout_handler);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_start(m_led_timer_id,APP_TIMER_TICKS(1000),NULL);
+    APP_ERROR_CHECK(err_code);
+
 }
 
 void button_handler(uint8_t pin_no, uint8_t button_action)
 {
+    NRF_LOG_INFO("Button press detected \r\n");
     if(pin_no == BUTTON_1 && button_action == APP_BUTTON_PUSH)
     {
+        NRF_LOG_INFO("Button 1 pressed \r\n");
         nrf_drv_gpiote_out_task_trigger(LED_1);
+        APP_ERROR_CHECK(app_pwm_channel_duty_set(&PWM2, 0, 10));
+        ready_flag = false;
+         nrf_delay_ms(1000);
+        while(!ready_flag){APP_ERROR_CHECK(app_pwm_channel_duty_set(&PWM2, 0, 0));}
+    }
+    if(pin_no == BUTTON_2 && button_action == APP_BUTTON_PUSH)
+    {
+        NRF_LOG_INFO("Button 2 pressed \r\n");
+        nrf_drv_gpiote_out_task_trigger(LED_2);
+        APP_ERROR_CHECK(app_pwm_channel_duty_set(&PWM2, 0, 5));
+        ready_flag = false;
+        nrf_delay_ms(1000);
+        while(!ready_flag){APP_ERROR_CHECK(app_pwm_channel_duty_set(&PWM2, 0, 0));}
     }
 
 }
@@ -216,19 +260,152 @@ void button_handler(uint8_t pin_no, uint8_t button_action)
 static void buttons_init()
 {
     ret_code_t err_code;
-
-    app_button_cfg_t button_cfg = {
+/*
+    static app_button_cfg_t button_cfg = {
       .pin_no = BUTTON_1,
       .active_state = APP_BUTTON_ACTIVE_LOW,
       .pull_cfg = NRF_GPIO_PIN_PULLUP,
       .button_handler = button_handler 
     };
+*/
+    static app_button_cfg_t button_cfg[2] = {
+        {BUTTON_1,APP_BUTTON_ACTIVE_LOW,NRF_GPIO_PIN_PULLUP,button_handler},
+        {BUTTON_2,APP_BUTTON_ACTIVE_LOW,NRF_GPIO_PIN_PULLUP,button_handler}
+    };
 
-    err_code = app_button_init(&button_cfg,NUMBER_OF_BUTTONS,5);
+    err_code = app_button_init(button_cfg,2,5);
     APP_ERROR_CHECK(err_code);
 
     err_code = app_button_enable();
     APP_ERROR_CHECK(err_code);
+}
+
+void pwm_ready_callback(uint32_t pwm_id)    // PWM callback function
+{
+    ready_flag = true;
+}
+
+static void pwm_init()
+{
+    ret_code_t err_code;
+    
+    app_pwm_config_t pwm2_cfg = APP_PWM_DEFAULT_CONFIG_1CH(20000L, 4);
+    pwm2_cfg.pin_polarity[0] = APP_PWM_POLARITY_ACTIVE_HIGH;
+
+    err_code = app_pwm_init(&PWM2,&pwm2_cfg,pwm_ready_callback);
+    APP_ERROR_CHECK(err_code);
+
+    app_pwm_enable(&PWM2);
+}
+
+void clock_event_handler(nrf_drv_clock_evt_type_t event)
+{
+  if(event == NRF_DRV_CLOCK_EVT_LFCLK_STARTED )
+  {
+     NRF_LOG_INFO("LFCLK started \r\n");
+  }
+
+}
+
+
+static void lfclk_init()
+{
+/*
+    ret_code_t err_code;
+
+    err_code = nrf_drv_clock_init();
+    APP_ERROR_CHECK(err_code);
+
+    nrf_drv_clock_handler_item_t clock_handler_item;
+
+    clock_handler_item.event_handler = clock_event_handler;
+
+    nrf_drv_clock_lfclk_request(NULL);
+  */  
+    NRF_CLOCK->LFCLKSRC            = (CLOCK_LFCLKSRC_SRC_RC << CLOCK_LFCLKSRC_SRC_Pos);
+    NRF_CLOCK->EVENTS_LFCLKSTARTED = 0;
+    NRF_CLOCK->TASKS_LFCLKSTART    = 1;
+
+    while (NRF_CLOCK->EVENTS_LFCLKSTARTED == 0)
+    {
+        // Do nothing.
+    }
+
+}
+
+void uart_event_handler(app_uart_evt_t * p_event)
+{
+    static uint8_t data_array[32];
+    static uint8_t index = 0;
+
+    switch (p_event->evt_type)
+    {
+        case APP_UART_DATA_READY:
+            app_uart_get(&data_array[index]);
+            index++;
+
+            if (data_array[index - 1] == '\n') 
+            {
+                for (uint32_t i = 0; i < strlen((const char *)data_array); i++)
+                {
+                    while (app_uart_put(data_array[i]) != NRF_SUCCESS);
+                }
+                memset(data_array,0,sizeof(data_array));
+                index = 0;
+            }
+            break;
+
+        case APP_UART_COMMUNICATION_ERROR:
+            APP_ERROR_HANDLER(p_event->data.error_communication);
+            break;
+
+        case APP_UART_FIFO_ERROR:
+            APP_ERROR_HANDLER(p_event->data.error_code);
+            break;
+
+        default:
+            break;
+    }
+}
+
+static void uart_init()
+{
+
+    uint32_t err_code;
+    const app_uart_comm_params_t uart_comm_params =
+    {
+        RX_PIN_NUMBER,
+        TX_PIN_NUMBER,
+        RTS_PIN_NUMBER,
+        CTS_PIN_NUMBER,
+        APP_UART_FLOW_CONTROL_DISABLED,
+        false,
+        UART_BAUDRATE_BAUDRATE_Baud115200
+    };
+
+    APP_UART_FIFO_INIT( &uart_comm_params,
+                       UART_RX_BUF_SIZE,
+                       UART_TX_BUF_SIZE,
+                       uart_event_handler,
+                       APP_IRQ_PRIORITY_LOWEST,
+                       err_code);
+    APP_ERROR_CHECK(err_code);
+
+}
+
+static void uart_print(uint8_t data_string[])
+{
+  static uint8_t id[] = "[nRF52 DK]: ";
+  static uint8_t array[256];
+  
+  memcpy(array,id, sizeof(id));
+  memcpy(array+sizeof(id)-1,data_string,strlen(data_string));
+  
+  for (uint32_t i = 0; i < strlen(array); i++)
+  {
+      while (app_uart_put(array[i]) != NRF_SUCCESS);
+  }
+  
 }
 
 static void power_manage()
@@ -257,26 +434,38 @@ static void power_manage()
  */
 int main(void)
 { 
-    log_init();
+    //log_init();
     
-    NRF_LOG_INFO("nRF52 Peripheral Tutorial \r\n");
+    //NRF_LOG_INFO("nRF52 Peripheral Tutorial \r\n");
+
+    lfclk_init();
     
     // Must be called before buttons_init as the Button Handler library(app_button.c) is used.
-    timers_init();
+    application_timer_init();
     
     // Initialize the buttons
     buttons_init();
     
     // The GPIOTE peripheral must be initialized first, so that the correct Task Endpoint addresses are returned by nrf_drv_gpiote_xxx_task_addr_get()
-    gpiote_init();
+    //gpiote_init();
     //ppi_init();
-    timer_init();
+    //timer_init();
+
+    pwm_init();
+    
+    uart_init();
+
+    uart_print("Nordic Semiconductor ASA\r\n");
+
+    nrf_gpio_cfg_output(LED_1);
 
     while (true)
     {
         
-        power_manage();
+        //power_manage();
         // Do nothing.
+        //nrf_delay_ms(1000);
+        //nrf_gpio_pin_toggle(LED_1);
     }
 }
 /** @} */
