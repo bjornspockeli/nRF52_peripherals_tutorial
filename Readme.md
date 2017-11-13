@@ -113,9 +113,9 @@ void button_handler(uint8_t pin_no, uint8_t button_action)
 ```
 
 
-### 4. Servo - Controlling a servo using the PWM driver(nrf_drv_pwm.c) or PWM library(app_pwm.c)
+### 4. Servo - Controlling a servo using the PWM library
 
-In this task we will use the PWM library in the nRF5x SDK to control a servo. The PWM library uses one of the nRF52s TIMER peripherals in addition to the PPI and GPIOTE peripherals. The app_pwm library is documented on [this](https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v14.1.0/group__app__pwm.html?resultof=%22%61%70%70%22%20%22%70%77%6d%22%20) Infocenter page
+In this task we will use [Pulse-Width Modulation](https://learn.sparkfun.com/tutorials/pulse-width-modulation) to control a analig servo. The PWM library uses one of the nRF52s TIMER peripherals in addition to the PPI and GPIOTE peripherals. The app_pwm library is documented on [this](https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v14.1.0/group__app__pwm.html?resultof=%22%61%70%70%22%20%22%70%77%6d%22%20) Infocenter page
 
 Connecting the Servo to your nRF52 DK:
 
@@ -127,7 +127,9 @@ Red: 5V - Should be connected to the pin marked 5V on your nRF52 DK.
 
 Orange: PWM Control Signal - Should be connected to one of the unused GPIO pins of the nRF52 DK (for example P0.04, pin number 4).
 
-1. The first thing we have to do is to include the header to the PWM library, `app_pwm.h` and create a PWM instance using the TIMER2 peripheral. This is done as shown below 
+1. The first thing we have to do is to include the header to the PWM library, `app_pwm.h` and create a PWM instance with the `APP_PWM_INSTANCE` macro that uses the TIMER2 peripheral. 
+<!---
+This is done as shown below 
 
 ```c
 #include "app_pwm.h"
@@ -135,9 +137,23 @@ Orange: PWM Control Signal - Should be connected to one of the unused GPIO pins 
 // PMW instance
 APP_PWM_INSTANCE(PWM2, 2);  // Setup a PWM instance with TIMER 2
 ```
+--->
 
-2. The second thing we have to do is creating the function `pwm_init()` where we configure, initialize and enable the PWM peripheral. You configure the pwm library by creating a app_pwm_config_t struct like shown below
+2. The second thing we have to do is creating the function `pwm_init()` where we configure, initialize and enable the PWM peripheral. You configure the pwm library by creating a [app_pwm_config_t](https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v14.1.0/structapp__pwm__config__t.html) and pass it as a parameter to where the following parameters must be specified:
 
+    - **pins**: Array of two unsigned integers that indicate which physical pins will be used for the PWM output. In one-channel mode, the second element is ignored.
+    - **pin_polarity**: 2-element array of app_pwm_polarity_t that indicates the output signal polarity. In one-channel mode, the second element is ignored.
+    - **num_of_channels**: Number of PWM channels (1 or 2).
+    - **period_us**: Signal period (in microseconds).
+
+Hints:
+    - The polarity can be set to either `APP_PWM_POLARITY_ACTIVE_HIGH` or `APP_PWM_POLARITY_ACTIVE_LOW`.
+    - We only need one PWM channel.  
+    - The second element of the pins array should be set to `APP_PWM_NOPIN`.
+    - The period of the PWM pulse should be 20ms
+
+
+<!---
 ```c
     app_pwm_config_t pwm_config = {
         .pins               = {4, APP_PWM_NOPIN},
@@ -146,8 +162,15 @@ APP_PWM_INSTANCE(PWM2, 2);  // Setup a PWM instance with TIMER 2
         .period_us          = 20000L                                                
     };
 ```
+--->
 
-This struct contains the information about which pins that are used as PWM pins, which polarity the pisn should have, how many channels(the number of PWM outputs, this is limited to 2 per PWM instance) and the period of the PWM signal. The struct is given as an input to the [app_pwm_init](https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v14.1.0/group__app__pwm.html#gae3b3e1d5404fd776bbf7bf22224b4b0d) function which initializes the PWM library. 
+3. The struct must be passed as an input to the [app_pwm_init](https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v14.1.0/group__app__pwm.html#gae3b3e1d5404fd776bbf7bf22224b4b0d) function which initializes the PWM library. After initializng the PWM library you have to enable the PWM instance by calling [app_pwm_enable](https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v14.1.0/group__app__pwm.html#ga94f5d824afec86aff163f7cccedaa436).
+
+Hints:
+    - We do not need to provide an event handler function, i.e. you can pass NULL instead of a function pointer.
+    - Make sure that you add `pwm_init()` to the `main()` function before the while-loop.
+
+<!---
 
 ```c
     uint32_t err_code;
@@ -157,18 +180,20 @@ This struct contains the information about which pins that are used as PWM pins,
 
 You can initialize the PWM library with a callback function that is called when duty cycle change process is finished, but this is not necessary for this example so we'll just pass NULL as an argument. After initializng the PWM library you have to enable the PWM instance by calling [app_pwm_enable](https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v14.1.0/group__app__pwm.html#ga94f5d824afec86aff163f7cccedaa436).
 
+<!---
 ```c
     app_pwm_enable(&PWM2);
 ```
-The `pwm_init()` function is now finished and can add it to the `main()` function before the infinite for-loop.
 
-3. Now that we have initialized the PWM library its time to set the duty cycle of the PWM signal to the servo using the  [app_pwm_channel_duty_set](https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v14.1.0/group__app__pwm.html#ga071ee86851d8c0845f297df5d23a240d) function. This will set the duty cycle of the PWM signal, i.e. the percentage of the total time the signal is high or low depending on the polarity that has been chosen. If we want to set the PWM signal to be high 50% of the time, then we call `app_pwm_channel_duty_set` with the following parameters.
+The `pwm_init()` function is now finished and can add it to the `main()` function before the infinite for-loop.
+--->
+4. Now that we have initialized the PWM library you can set to set the duty cycle of the PWM signal to the servo using the  [app_pwm_channel_duty_set](https://infocenter.nordicsemi.com/topic/com.nordic.infocenter.sdk5.v14.1.0/group__app__pwm.html#ga071ee86851d8c0845f297df5d23a240d) function. This will set the duty cycle of the PWM signal, i.e. the percentage of the total time the signal is high or low depending on the polarity that has been chosen. If we want to set the PWM signal to be high 50% of the time, then we call `app_pwm_channel_duty_set` with the following parameters.
 
 ```c
     while (app_pwm_channel_duty_set(&PWM1, 0, 50) == NRF_ERROR_BUSY);
 ```
 
-4. The goal of this task was to make the servo sweep from its maximum angle to its minimum angle. This can be done by calling `app_pwm_channel_duty_set()` twice with a delay between the two calls in the main while-loop.
+Make the servo sweep from its maximum angle to its minimum angle. This can be done by calling `app_pwm_channel_duty_set()` twice with a delay between the two calls in the main while-loop, as shown below
 
 ```c
     while (true)
@@ -315,11 +340,11 @@ The memset function is used to clear the data_array since it is decleared as sta
 
 6. Send a text string from the terminal to the nRF52 DK and verify that it is echoed back to the terminal.
 
-## Task 5.1: Temperature Sensor 
+## 5.1: Temperature Sensor 
 Use the die temperature sensor on the nRF52 to measure the temperature in the room. 
 
 1. Create the function read_temperature() that returns the die temperature as a int32_t. 
-    *Hint:* Take a look at the temperature example in the SDK before you start modifying your template example.
+    **Hint:** Take a look at the temperature example in the SDK before you start modifying your template example. You'll find it in examples\peripheral\temperature. 
 
 2. Send the temperature data to your terminal application using the UART. 
 
