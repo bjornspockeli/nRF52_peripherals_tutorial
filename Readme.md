@@ -214,9 +214,9 @@ The code snippet above sets the duty cycle to 0, you have to figure out the corr
 
 ### 5. UART
 
-Use the nRF52s UART peripheral and the UART library (app_uart) to echo data sent from a terminal. If you do not already have a favorite terminal application, then I recommend using [Termite] (http://www.compuphase.com/software_termite.htm). The UART library is documented on this Infocenter page.
+Use the nRF52s UART peripheral and the UART library (app_uart) to echo data sent from a terminal. If you do not already have a favorite terminal application, then I recommend using [Termite](http://www.compuphase.com/software_termite.htm). The UART library is documented on [this](https://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.sdk5.v14.1.0%2Fgroup__app__uart.html) Infocenter page.
 
-1. Create the function `uart_init` where you use the `APP_UART_FIFO_INIT` macro to initialize the UART module. The baudrate should be set to 115200, Flow Control should be disabled, no parity bits are used and the RX and TX buffers should be set to 256 in size. The UART pins of the nRF52 DK are listed on the backside of the board. See the UART example in the `\examples\peripheral\uart\pca10040\blank\ses` folder
+1. Create the function `uart_init` where you use the `APP_UART_FIFO_INIT` macro to initialize the UART module. The baudrate should be set to 115200, Flow Control should be disabled, no parity bits are used and the RX and TX buffers should be set to 256 in size. The UART pins of the nRF52 DK are listed on the backside of the board. See the UART example in the `\examples\peripheral\uart\pca10040\blank\ses` folder.
 
 2. Create the function uart_event_handler as shown below, we will modify it later in order to receive data from the terminal. 
 
